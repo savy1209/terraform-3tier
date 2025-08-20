@@ -1,0 +1,5 @@
+aws_profile = "default"
+project     = "dev-three-tier"
+db_user     = "admin"
+db_password = "admin123123!"
+admin_cidr  = "사무실 IP대역 기입"
