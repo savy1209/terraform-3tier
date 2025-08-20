@@ -1,8 +1,12 @@
 # 3-Tier on AWS with Terraform
 
 ## 구성
-ALB → EC2(Web, Nginx proxy) → Internal ALB → EC2(WAS, Tomcat) → RDS(MySQL) bastion: 퍼블릭 서브넷/  
-Web·Was·DB는 프라이빗 서브넷 리전: ap-northeast-1 (Tokyo)
+ALB → EC2(Web, Nginx proxy) → Internal ALB → EC2(WAS, Tomcat) → RDS(MySQL) 
+
+bastion: 퍼블릭 서브넷/  Web·Was·DB는 프라이빗 서브넷 
+
+리전: ap-northeast-1 (Tokyo)
+
 
 ## 프로젝트 구조
 ```
