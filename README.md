@@ -32,7 +32,14 @@ dev-three-tier/
 ```
 
 ## 요약 다이어그램
-**[Internet]** ↓ **[Public ALB :80]** —(GET /health)→ **Web 인스턴스 로컬 200** ! (proxy) **[Web ASG :80, Nginx]** ——→ **[Internal ALB :8080]** —(GET /index.jsp)→ **[WAS ASG :8080, Tomcat]** ↓ **[RDS :3306]**
+[Internet] 
+   ↓ 
+[Public ALB :80] ──(GET /health)→ Web 인스턴스 로컬 200
+   ↓ (proxy)
+[Web ASG :80, Nginx] ──→ [Internal ALB :8080] ──(GET /index.jsp)→ [WAS ASG :8080, Tomcat]
+                                                                  ↓
+                                                               [RDS :3306]
+
 
 ## 사전 환경 구성
 AWS CLI 설치 : https://docs.aws.amazon.com/ko_kr/cli/v1/userguide/cli-chap-install.html  
