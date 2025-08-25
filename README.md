@@ -1,3 +1,4 @@
+```mermaid
 flowchart LR
   Internet[(Internet)]
   subgraph Public_Subnet["Public Subnet"]
@@ -48,3 +49,4 @@ flowchart LR
 
   %% 수집 파이프라인
   EB --> L_COL --> DDB
+```
