@@ -2,52 +2,52 @@
 flowchart LR
   Internet((Internet))
 
-  subgraph Public_Subnet
-    ALB_WEB[Public ALB 80 health]
-    Bastion[Bastion SSH 22]
+  subgraph Public_Subnet["Public Subnet"]
+    ALB_WEB[Public ALB :80]
+    Bastion[Bastion (SSH 22)]
     NATGW[NAT Gateway]
   end
 
-  subgraph Private_App_Subnets
-    WEB_ASG[Web ASG Nginx 80]
-    ALB_APP[Internal ALB 8080]
-    APP_ASG[WAS ASG Tomcat 8080]
+  subgraph Private_App["Private App Subnets"]
+    WEB_ASG[Web ASG (Nginx :80)]
+    ALB_APP[Internal ALB :8080]
+    APP_ASG[WAS ASG (Tomcat :8080)]
   end
 
-  subgraph Private_DB_Subnets
-    RDS[(RDS MySQL 3306 private)]
+  subgraph Private_DB["Private DB Subnets"]
+    RDS[(RDS MySQL :3306)]
   end
 
-  subgraph AI_OPS
-    DDB[DynamoDB inventory]
-    EB[EventBridge rule 10m]
+  subgraph AI_OPS["AI-OPS (Inventory/Activity)"]
+    DDB[(DynamoDB)]
+    EB[EventBridge 10m]
     L_COL[Lambda collector]
-    L_ASK[Lambda ops handler]
+    L_OPS[Lambda /ops]
+    L_ACT[Lambda /ops/activity]
   end
 
   %% 트래픽 경로
   Internet --> ALB_WEB
   ALB_WEB --> WEB_ASG
-  WEB_ASG --> ALB_APP
+  WEB_ASG -->|proxy 8080| ALB_APP
   ALB_APP --> APP_ASG
-  APP_ASG --> RDS
+  APP_ASG -->|MySQL 3306| RDS
 
   %% 사설 서브넷 아웃바운드
   WEB_ASG --> NATGW
   APP_ASG --> NATGW
   NATGW --> Internet
 
-  %% Bastion 경로
-  Internet --> Bastion
-  Bastion --> WEB_ASG
-  Bastion --> APP_ASG
-  Bastion --> RDS
+  %% Bastion
+  Internet -->|admin_cidr| Bastion
+  Bastion -.-> WEB_ASG
+  Bastion -.-> APP_ASG
+  Bastion -.-> RDS
 
-  %% /ops 경로 (내부 ALB 경유 Lambda)
-  ALB_APP --> L_ASK
-  L_ASK --> DDB
-
-  %% 수집 파이프라인
-  EB --> L_COL
-  L_COL --> DDB
+  %% AI-OPS 라우팅/수집
+  ALB_APP -->|/ops| L_OPS
+  ALB_APP -->|/ops/activity| L_ACT
+  L_OPS --> DDB
+  L_ACT --> DDB
+  EB --> L_COL --> DDB
 ```
