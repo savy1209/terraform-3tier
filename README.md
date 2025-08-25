@@ -1,53 +1,67 @@
 ```mermaid
-flowchart LR
+flowchart TD
   Internet((Internet))
-
-  subgraph Public_Subnet["Public Subnet"]
-    ALB_WEB[Public ALB :80]
-    Bastion[Bastion (SSH 22)]
-    NATGW[NAT Gateway]
+  
+  subgraph VPC["VPC"]
+    subgraph Public_Subnet["Public Subnet (10.0.1.0/24)"]
+      ALB_WEB[Public ALB<br/>:80/443]
+      Bastion[Bastion Host<br/>SSH :22]
+      NATGW[NAT Gateway]
+    end
+    
+    subgraph Private_App["Private App Subnets (10.0.2.0/24)"]
+      WEB_ASG[Web Tier ASG<br/>Nginx :80]
+      ALB_APP[Internal ALB<br/>:8080]
+      APP_ASG[App Tier ASG<br/>Tomcat :8080]
+    end
+    
+    subgraph Private_DB["Private DB Subnets (10.0.3.0/24)"]
+      RDS[(RDS MySQL<br/>:3306)]
+    end
+  end
+  
+  subgraph AI_OPS["AI-OPS Services"]
+    DDB[(DynamoDB<br/>Inventory/Activity)]
+    EB[EventBridge<br/>10min schedule]
+    L_COL[Lambda Collector<br/>Data Collection]
+    L_OPS[Lambda /ops<br/>API Handler]
+    L_ACT[Lambda /ops/activity<br/>Activity Handler]
   end
 
-  subgraph Private_App["Private App Subnets"]
-    WEB_ASG[Web ASG (Nginx :80)]
-    ALB_APP[Internal ALB :8080]
-    APP_ASG[WAS ASG (Tomcat :8080)]
-  end
+  %% External Traffic Flow
+  Internet -->|HTTPS/HTTP| ALB_WEB
+  ALB_WEB -->|HTTP :80| WEB_ASG
+  WEB_ASG -->|Proxy :8080| ALB_APP
+  ALB_APP -->|HTTP :8080| APP_ASG
+  APP_ASG -->|MySQL :3306| RDS
 
-  subgraph Private_DB["Private DB Subnets"]
-    RDS[(RDS MySQL :3306)]
-  end
+  %% Outbound Internet Access
+  WEB_ASG -.->|Updates/Packages| NATGW
+  APP_ASG -.->|Updates/Packages| NATGW
+  NATGW -->|HTTPS| Internet
 
-  subgraph AI_OPS["AI-OPS (Inventory/Activity)"]
-    DDB[(DynamoDB)]
-    EB[EventBridge 10m]
-    L_COL[Lambda collector]
-    L_OPS[Lambda /ops]
-    L_ACT[Lambda /ops/activity]
-  end
+  %% Admin Access
+  Internet -->|SSH from Admin CIDR| Bastion
+  Bastion -.->|SSH :22| WEB_ASG
+  Bastion -.->|SSH :22| APP_ASG
+  Bastion -.->|MySQL Client| RDS
 
-  %% 트래픽 경로
-  Internet --> ALB_WEB
-  ALB_WEB --> WEB_ASG
-  WEB_ASG -->|proxy 8080| ALB_APP
-  ALB_APP --> APP_ASG
-  APP_ASG -->|MySQL 3306| RDS
+  %% AI-OPS Integration
+  ALB_APP -->|GET /ops| L_OPS
+  ALB_APP -->|POST /ops/activity| L_ACT
+  L_OPS <-->|Read/Write| DDB
+  L_ACT <-->|Write| DDB
+  EB -->|Trigger every 10min| L_COL
+  L_COL <-->|Collect & Store| DDB
 
-  %% 사설 서브넷 아웃바운드
-  WEB_ASG --> NATGW
-  APP_ASG --> NATGW
-  NATGW --> Internet
-
-  %% Bastion
-  Internet -->|admin_cidr| Bastion
-  Bastion -.-> WEB_ASG
-  Bastion -.-> APP_ASG
-  Bastion -.-> RDS
-
-  %% AI-OPS 라우팅/수집
-  ALB_APP -->|/ops| L_OPS
-  ALB_APP -->|/ops/activity| L_ACT
-  L_OPS --> DDB
-  L_ACT --> DDB
-  EB --> L_COL --> DDB
+  %% Styling
+  classDef publicSubnet fill:#e1f5fe
+  classDef privateSubnet fill:#f3e5f5
+  classDef database fill:#e8f5e8
+  classDef aiServices fill:#fff3e0
+  
+  class Public_Subnet publicSubnet
+  class Private_App,Private_DB privateSubnet
+  class RDS,DDB database
+  class AI_OPS aiServices
 ```
