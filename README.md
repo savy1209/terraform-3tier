@@ -2,34 +2,34 @@
 flowchart TD
   Internet((Internet))
   
-  subgraph VPC["VPC"]
-    subgraph Public_Subnet["Public Subnet (10.0.1.0/24)"]
-      ALB_WEB[Public ALB<br/>:80/443]
-      Bastion[Bastion Host<br/>SSH :22]
+  subgraph VPC["VPC (10.0.0.0/16)"]
+    subgraph Public_Subnet["Public Subnets (10.0.0.0/24, 10.0.1.0/24)"]
+      ALB_WEB[Public ALB :80]
+      Bastion[Bastion Host\nSSH :22]
       NATGW[NAT Gateway]
     end
     
-    subgraph Private_App["Private App Subnets (10.0.2.0/24)"]
-      WEB_ASG[Web Tier ASG<br/>Nginx :80]
-      ALB_APP[Internal ALB<br/>:8080]
-      APP_ASG[App Tier ASG<br/>Tomcat :8080]
+    subgraph Private_App["Private App Subnets (10.0.100.0/24, 10.0.101.0/24)"]
+      WEB_ASG[Web Tier ASG\nNginx :80]
+      ALB_APP[Internal ALB :8080]
+      APP_ASG[App Tier ASG\nTomcat :8080]
     end
     
-    subgraph Private_DB["Private DB Subnets (10.0.3.0/24)"]
-      RDS[(RDS MySQL<br/>:3306)]
+    subgraph Private_DB["Private DB Subnets (10.0.200.0/24, 10.0.201.0/24)"]
+      RDS[(RDS MySQL :3306\nprivate)]
     end
   end
   
   subgraph AI_OPS["AI-OPS Services"]
-    DDB[(DynamoDB<br/>Inventory/Activity)]
-    EB[EventBridge<br/>10min schedule]
-    L_COL[Lambda Collector<br/>Data Collection]
-    L_OPS[Lambda /ops<br/>API Handler]
-    L_ACT[Lambda /ops/activity<br/>Activity Handler]
+    DDB[(DynamoDB\nInventory/Activity)]
+    EB[EventBridge\n10min schedule]
+    L_COL[Lambda Collector\nData Collection]
+    L_OPS[Lambda /ops\nAPI Handler]
+    L_ACT[Lambda /ops/activity\nActivity Handler]
   end
 
   %% External Traffic Flow
-  Internet -->|HTTPS/HTTP| ALB_WEB
+  Internet -->|HTTP :80| ALB_WEB
   ALB_WEB -->|HTTP :80| WEB_ASG
   WEB_ASG -->|Proxy :8080| ALB_APP
   ALB_APP -->|HTTP :8080| APP_ASG
@@ -38,30 +38,19 @@ flowchart TD
   %% Outbound Internet Access
   WEB_ASG -.->|Updates/Packages| NATGW
   APP_ASG -.->|Updates/Packages| NATGW
-  NATGW -->|HTTPS| Internet
+  NATGW --> Internet
 
   %% Admin Access
-  Internet -->|SSH from Admin CIDR| Bastion
+  Internet -->|SSH from admin_cidr| Bastion
   Bastion -.->|SSH :22| WEB_ASG
   Bastion -.->|SSH :22| APP_ASG
-  Bastion -.->|MySQL Client| RDS
+  Bastion -.->|MySQL client| RDS
 
   %% AI-OPS Integration
   ALB_APP -->|GET /ops| L_OPS
-  ALB_APP -->|POST /ops/activity| L_ACT
-  L_OPS <-->|Read/Write| DDB
-  L_ACT <-->|Write| DDB
-  EB -->|Trigger every 10min| L_COL
-  L_COL <-->|Collect & Store| DDB
+  ALB_APP -->|GET /ops/activity| L_ACT
+  L_OPS --> DDB
+  L_ACT --> DDB
+  EB --> L_COL --> DDB
 
-  %% Styling
-  classDef publicSubnet fill:#e1f5fe
-  classDef privateSubnet fill:#f3e5f5
-  classDef database fill:#e8f5e8
-  classDef aiServices fill:#fff3e0
-  
-  class Public_Subnet publicSubnet
-  class Private_App,Private_DB privateSubnet
-  class RDS,DDB database
-  class AI_OPS aiServices
 ```
