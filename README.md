@@ -1,5 +1,6 @@
+```mermaid
 flowchart LR
-  Internet
+  Internet((Internet))
 
   subgraph Public_Subnet
     ALB_WEB[Public ALB 80 health]
@@ -14,7 +15,7 @@ flowchart LR
   end
 
   subgraph Private_DB_Subnets
-    RDS[RDS MySQL 3306 private]
+    RDS[(RDS MySQL 3306 private)]
   end
 
   subgraph AI_OPS
@@ -49,3 +50,4 @@ flowchart LR
   %% 수집 파이프라인
   EB --> L_COL
   L_COL --> DDB
+```
