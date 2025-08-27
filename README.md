@@ -9,25 +9,34 @@ bastion: 퍼블릭 서브넷/Web·Was·DB는 프라이빗 서브넷
 
 ## 프로젝트 구조
 ```
-dev-three-tier/
-├── versions.tf         # Terraform/AWS Provider 버전 고정(제한성)
-├── provider.tf         # AWS Provider 설정(리전, 프로필)
-├── variables.tf        # 루트 입력 변수 선언(리전, 프로젝트명, admin_cidr, DB 계정 등)
-├── keys.tf             # 키페어 자동 생성(tls → aws_key_pair), 로컬 .pem 저장(0600)
-├── main.tf             # 모듈 연결: VPC → SG → ALB(외부/내부) → EC2(Web/WAS) → RDS + Bastion
-├── outputs.tf          # terraform output 정목(web_alb_dns, app_alb_dns, db_endpoint, bastion_ip 등)
-├── terraform.tfvars    # 환경별 값(DEV용 기본값, 민감정보는 여기서 주입)
-└── modules/            # 기능별 하위 모듈 모음
-    ├── vpc/            # 네트워크 기본틀
-    │   ├── variables.tf # VPC/서브넷 크기, AZ 수 등 입력값
-    │   └── main.tf     # VPC, IGW, NAT GW(DEV: 1개), 서브넷 3종
-    ├── security/       # 보안그룹(인바운드 경로 정의)
-    │   ├── alb_web/    # 외부 ALB(HTTP:80, TG /health) HTTPS 확장 가능
-    │   ├── web/        # Nginx 프록시 ASG(프라이빗) — /health 200, 나머지 내부 ALB:8080 프록시
-    │   ├── alb_app/    # 내부 ALB(8080, TG /index.jsp)
-    │   ├── app/        # Tomcat ASG(프라이빗, JDK+wget 바이너리 설치, /index.jsp)
-    │   ├── db/         # RDS MySQL 8.0(+Subnet Group)
-    │   └── bastion/    # 점프호스트(퍼블릭, SSH; admin_cidr 제한)
+
+root
+
+- `versions.tf` — Terraform/Provider **버전 고정**(재현성 확보)
+- `provider.tf` — AWS Provider **연결 설정**(리전/프로필 등)
+- `variables.tf` — 루트 **입력 변수 선언**(region, project, admin_cidr, DB 등)
+- `terraform.tfvars` — 변수 **실제 값** 넣는 로컬 파일(비공개 권장)
+- `keys.tf` — `tls_private_key`→`aws_key_pair`로 **키 생성/등록**, PEM 로컬 저장
+- `main.tf` — 하위 모듈 **배선**(앞 모듈 outputs → 뒤 모듈 inputs)
+- `outputs.tf` — 배포 후 확인용 **출력 값** 정의(web_alb_dns, db_endpoint 등)
+
+modules
+
+- `modules/vpc/variables.tf` — VPC/서브넷/AZ 등 **네트워크 입력 변수**
+- `modules/vpc/main.tf` — **VPC·서브넷(공/앱/DB)·IGW·NAT(DEV 단일)·라우팅** 생성
+- `modules/vpc/outputs.tf` — `vpc_id`, **서브넷 IDs** 출력
+- `modules/security/main.tf` — **보안그룹 세트**(ALB(pub/inner), Web, App, DB, Bastion)
+- `modules/security/outputs.tf` — 각 **SG ID 출력**
+- `modules/alb_web/main.tf` — **퍼블릭 ALB:80** + TG(`/health`) + 리스너
+- `modules/web/variables.tf` — Web 모듈 **입력 변수**(서브넷, SG, TG ARN, 백엔드 ALB DNS, 키)
+- `modules/web/main.tf` — **Nginx 프록시 ASG**(헬스 `/health`, 내부 ALB:8080으로 프록시) + TG 연결
+- `modules/alb_app/main.tf` — **내부 ALB:8080** + TG(`/index.jsp`) + 리스너
+- `modules/app/variables.tf` — App 모듈 **입력 변수**(서브넷, SG, TG ARN, RDS 엔드포인트, 키)
+- `modules/app/main.tf` — **Tomcat ASG**(user_data로 JDK+wget 설치/기동, `/index.jsp`) + TG 연결
+- `modules/db/main.tf` — **DB Subnet Group + RDS MySQL**(프라이빗, 퍼블릭 비공개)
+- `modules/db/outputs.tf` — **`db_endpoint`** 출력
+- `modules/bastion/main.tf` — **Bastion EC2**(퍼블릭 서브넷, 22는 `admin_cidr`만 허용)
+
 ```
 
 ## 요약 다이어그램
